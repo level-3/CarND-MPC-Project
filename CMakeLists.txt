@@ -27,3 +27,5 @@ add_executable(mpc ${sources})
 
 target_link_libraries(mpc ipopt z ssl uv uWS)
 
+include_directories(/usr/include/python2.7)
+

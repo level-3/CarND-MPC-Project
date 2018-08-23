@@ -10,11 +10,15 @@ class MPC {
  public:
   MPC();
 
+
   virtual ~MPC();
 
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuatotions.
   vector<double> Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs);
+
+  array<vector<double>, 6> PredictState_Kinematic(Eigen::VectorXd state, MPC mpc , Eigen::VectorXd coeffs, int N);
+
 };
 
 #endif /* MPC_H */
