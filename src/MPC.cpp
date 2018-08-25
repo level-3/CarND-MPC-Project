@@ -8,7 +8,7 @@ using CppAD::AD;
 // TODO: Set the timestep length and duration
 size_t N = 8;
 double dt = 0.0725;
-double latency = 0.1;
+
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -31,18 +31,19 @@ size_t epsi_start = cte_start + N;
 size_t delta_start = epsi_start + N;
 size_t a_start = delta_start + N - 1;
 
-size_t ref_v =  100 ;
+size_t ref_v =  40 ;
 
+
+vector<int> w = {};
+
+const bool fangio = true;
 
 
 class FG_eval {
  public:
   // Fitted polynomial coefficients
   Eigen::VectorXd coeffs;
-  FG_eval(Eigen::VectorXd coeffs) { this->coeffs = coeffs; }
-  
-  
-  
+  FG_eval(Eigen::VectorXd coeffs) { this->coeffs = coeffs; }  
   
   typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
   void operator()(ADvector& fg, const ADvector& vars) {
@@ -53,10 +54,11 @@ class FG_eval {
 
     fg[0] = 0;
 
+
     int weight_cte = 10000;
     int weight_epsi = 10000;
     int weight_v = 5;
-    int weight_delta = 100;
+    int weight_delta = 500;
     int weight_a = 50;
     int weight_delta_dot = 50;
     int weight_a_dot = 5;
@@ -71,7 +73,7 @@ class FG_eval {
 
     // Minimize the use of actuators.
     for (unsigned int t = 0; t < N - 1; t++) {
-    fg[0] += weight_delta * CppAD::pow(vars[delta_start + t], 2);
+    fg[0] += weight_delta * CppAD::pow(vars[delta_start + t] / (0.436332 * Lf) * vars[a_start], 2);
     fg[0] += weight_a * CppAD::pow(vars[a_start + t], 2);
     }
 
@@ -88,7 +90,7 @@ class FG_eval {
 
     // Initial constraints
     //
-    // We add 1 to each of the starting indices due to cost being located at
+    // We add double top_speed = 0.0;1 to each of the starting indices due to cost being located at
     // index 0 of `fg`.
     // This bumps up the position of all the other values.
     fg[1 + x_start] = vars[x_start];
@@ -143,17 +145,25 @@ class FG_eval {
   }
 };
 
+
+
+
 //
 // MPC class definition implementation.
-//
+
 MPC::MPC() {}
 MPC::~MPC() {}
+
+
+double top_speed = 0.0;
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) 
   
 {
+
+
   bool ok = true;
-  //size_t i;
+
 
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
@@ -162,25 +172,45 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
   double psi = state[2];
   double v = state[3];
 
-
-  if ( (psi > 0.035 || psi < -0.035 ) )
-  { ref_v = 20;}
-  else if ( psi <= 0.035 || psi >= -0.035)
-  { ref_v = 100;}
-
-
   double cte = state[4];
-
-  if ( cte >  1.0)
-  { ref_v -= 20;}
-
-
-  if (ref_v == 0)
-  {ref_v = 20;}
-
-  cout << ref_v << endl;
-
   double epsi = state[5];
+
+
+
+          if (fangio)
+            { ref_v =  100;
+              double psi_cutoff = 0.03;
+              if ( (psi > psi_cutoff || psi < -psi_cutoff )  )
+              { ref_v = 20; cout << "\tCorner\t" ;}
+              else if ( psi <= psi_cutoff || psi >= -psi_cutoff)
+              { ref_v = 100; cout << "\tStraight\t" ;}
+            /**/
+              if ( cte >  2.0)
+              { ref_v -= 20;cout << "\tCTE\t" ;}
+
+              double epsi_cutoff = 0.2;
+
+              if ( (epsi > epsi_cutoff || epsi < -epsi_cutoff ) )
+              {ref_v -= 20; cout << "\tEPSI --\t" ;} //
+              else if ( epsi <= epsi_cutoff || epsi >= -epsi_cutoff)
+              { ref_v += 20; } //cout << "\tEPSI ++\t";
+
+              if (ref_v <= 0)
+              {ref_v = 20;}
+
+              if (v > top_speed)
+              {top_speed = v;}
+            }
+
+
+
+
+
+
+
+
+  cout << top_speed << "\t" << ref_v  << endl;
+
   // TODO: Set the number of model variables (includes both states and inputs).
   // For example: If the state is a 4 element vector, the actuators is a 2
   // element vector and there are 10 timesteps. The number of variables is:
@@ -292,8 +322,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
 
   // Cost
-  auto cost = solution.obj_value;
-  std::cout << "\tCost " << cost << std::endl;
+  //auto cost = solution.obj_value;
+  //std::cout << "\tCost " << cost << std::endl;
 
   // TODO: Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
@@ -304,29 +334,21 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
   vector<double> soln ;
 
 
-/*
-
-  soln.push_back(solution.x[x_start]);
-  soln.push_back(solution.x[y_start]);
-*/
   soln.push_back(solution.x[delta_start]);
   soln.push_back(solution.x[a_start]);
   soln.push_back(solution.x[cte_start]);
+
+
+  soln.push_back(solution.x[psi_start + 1]);
+  soln.push_back(solution.x[epsi_start + 1]);
+  soln.push_back(solution.x[v_start + 1]);
+
 
   for (unsigned int i = 0 ; i < N  ; i++ )
   {
     soln.push_back(solution.x[x_start + i]);
     soln.push_back(solution.x[y_start + i]);
   }
-/*
-  soln.push_back(solution.x[psi_start + 1]);
-  soln.push_back(solution.x[v_start + 1]);
-  soln.push_back(solution.x[cte_start + 1]);
-  soln.push_back(solution.x[epsi_start + 1]);
-*/
-
-
-
 
 
   return soln;
@@ -407,7 +429,6 @@ array<vector<double>, 6> MPC::PredictState_Kinematic(Eigen::VectorXd state, MPC 
   return result;
 
   }
-
 
 
 

@@ -19,6 +19,10 @@ class MPC {
 
   array<vector<double>, 6> PredictState_Kinematic(Eigen::VectorXd state, MPC mpc , Eigen::VectorXd coeffs, int N);
 
+
+
 };
+
+
 
 #endif /* MPC_H */

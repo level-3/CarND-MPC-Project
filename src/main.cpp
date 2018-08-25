@@ -12,8 +12,14 @@
 #include "matplotlibcpp.h"
 
 
+
+
+//#include <boost/thread.hpp>
 // for convenience
 using json = nlohmann::json;
+
+
+const bool show_graph = false;
 
 namespace plt = matplotlibcpp;
 
@@ -23,8 +29,10 @@ double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
 const double Lf = 2.67;
 
-int iters= 0;
-int max_i = 100;
+int iters= 1;
+
+
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 // else the empty string "" will be returned.
@@ -85,6 +93,7 @@ void peigen (Eigen::VectorXd vect ) // send a vector to console
 }
 
 
+
 void pvector (vector<double> vect ) // send a vector to console
 {
           
@@ -142,16 +151,29 @@ array<vector<double>, 2> World2Car(vector<double> vect_world_x, vector<double> v
 }
 
 
+
+
+
 int main() {
   uWS::Hub h;
   //std::cout << setprecision(8);
   // MPC is initialized here!
   MPC mpc;
           
-           
+          
+
+  
+  std::vector<double> x_vals ;
+  std::vector<double> y_vals ;
+  std::vector<double> psi_vals;
+  std::vector<double> v_vals ;
+  std::vector<double> cte_vals ;
+  std::vector<double> epsi_vals ;
+  std::vector<double> delta_vals ;
+  std::vector<double> a_vals ;
 
 
-  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&mpc, &x_vals, &y_vals, &psi_vals, &v_vals, &cte_vals, &epsi_vals, &delta_vals, &a_vals](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -192,6 +214,7 @@ int main() {
 
           for (unsigned int i = 0 ; i < ptsx.size() ; i++)
           {
+
             double x, y;
             x = ptsx[i] - px;
             y = ptsy[i] - py;
@@ -219,7 +242,6 @@ int main() {
 
             Eigen::VectorXd state(6);
           
-
             double dt = 0.0725;
             
             //predicted values
@@ -232,66 +254,27 @@ int main() {
             epsi_val += v * -delta / Lf *dt;
 
             //cout << x_val<< "\t" << y_val<< "\t" << psi_val<< "\t" << v_val<<"\t" << cte_val<<"\t" << epsi_val << "\t";
-            cout <<"\t"<< psi_val<< "\t" << v_val<< "\t" << cte_val << "\t" ;
-            cout << setprecision(4);
+            //cout <<  epsi_val << "\t" << cte_val << "\t" << endl ;
+
             state << x_val, y_val, psi_val, v_val, cte_val, epsi_val;
             
             vector<double> vars;
             vars = mpc.Solve(state, coeffs);
 
+            delta_vals.push_back(vars[0]);
+            a_vals.push_back(vars[1]);      
+            cte_vals.push_back(vars[2]);
 
-/*
+            psi_vals.push_back(vars[3]);
+            epsi_vals.push_back(vars[4]);
+            v_vals.push_back(vars[5]);
 
-        std::vector<double> x_vals = {state[0]};
-        std::vector<double> y_vals = {state[1]};
-        std::vector<double> psi_vals = {state[2]};
-        std::vector<double> v_vals = {state[3]};
-        std::vector<double> cte_vals = {state[4]};
-        std::vector<double> epsi_vals = {state[5]};
-        std::vector<double> delta_vals = {};
-        std::vector<double> a_vals = {};
+            x_vals.push_back(px);
+            y_vals.push_back(py);
 
-      
 
-            x_vals.push_back(vars[0]);
-            y_vals.push_back(vars[1]);
-            psi_vals.push_back(vars[2]);
-            v_vals.push_back(vars[3]);
-            cte_vals.push_back(vars[4]);
-            epsi_vals.push_back(vars[5]);
 
-            delta_vals.push_back(vars[6]);
-            a_vals.push_back(vars[7]);
-
-            state << vars[0], vars[1], vars[2], vars[3], vars[4], vars[5];
-
-            std::cout << "x = " << vars[0] << std::endl;
-            std::cout << "y = " << vars[1] << std::endl;
-            std::cout << "psi = " << vars[2] << std::endl;
-            std::cout << "v = " << vars[3] << std::endl;
-            std::cout << "cte = " << vars[4] << std::endl;
-            std::cout << "epsi = " << vars[5] << std::endl;
-            std::cout << "delta = " << vars[6] << std::endl;
-            std::cout << "a = " << vars[7] << std::endl;
-            std::cout << std::endl;
-          }
-
-          // Plot values
-          // NOTE: feel free to play around with this.
-          // It's useful for debugging!
-          plt::subplot(3, 1, 1);
-          plt::title("CTE");
-          plt::plot(cte_vals);
-          plt::subplot(3, 1, 2);
-          plt::title("Delta (Radians)");
-          plt::plot(delta_vals);
-          plt::subplot(3, 1, 3);
-          plt::title("Velocity");
-          plt::plot(v_vals);
-
-          plt::show();
-*/
-
+          iters++;
 
           delta = - vars[0] / (deg2rad(25) * Lf);
           a  = vars[1];
@@ -304,16 +287,16 @@ int main() {
           msgJson["throttle"] = a;
 
 
-          vector<double> mpc_x ;//= {state[0]};
-          vector<double> mpc_y ;//= {state[1]};
+          vector<double> mpc_x ;
+          vector<double> mpc_y ;
 
           
 
-          for (unsigned int i = 3 ; i < vars.size() ; i+=2 )
+          for (unsigned int i = 6 ; i < vars.size() ; i+=2 )
           {
             mpc_x.push_back(vars[i]);
             mpc_y.push_back(polyeval(coeffs , vars[i]) - vars[2]);
-            //mpc_y.push_back(vars[2]);
+            
             
           }
 
@@ -364,6 +347,57 @@ int main() {
           // SUBMITTING.
           this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+
+          if (show_graph == true)
+          {
+
+
+          if (iters == 100)
+            {
+
+
+                    
+            // Plot values
+            // NOTE: feel free to play around with this.
+            // It's useful for debugging!
+            plt::subplot(6, 1, 1);
+            plt::title("CTE");
+            plt::plot(cte_vals);
+
+            plt::subplot(6, 1, 2);
+            plt::title("Delta (Radians)");
+            plt::plot(delta_vals);
+
+            plt::subplot(6, 1, 3);
+            plt::title("Velocity");
+            plt::plot(v_vals);
+
+            plt::subplot(6, 1, 4);
+            plt::title("Epsi");
+            plt::plot(epsi_vals);
+
+            plt::subplot(6, 1, 5);
+            plt::title("x");
+            plt::plot(x_vals);
+
+            plt::subplot(6, 1, 6);
+            plt::title("y");
+            plt::plot(y_vals);
+
+            cout << "game over";
+
+            //plt::ion();
+            plt::show();
+            //plt::save("./graph.png");
+            //exit(1);
+
+            
+
+
+            }   
+          }
+
         }
       } else {
         // Manual driving
@@ -371,7 +405,11 @@ int main() {
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
-  });
+    
+  }
+  
+
+);
 
   // We don't need this since we're not using HTTP but if it's removed the
   // program
