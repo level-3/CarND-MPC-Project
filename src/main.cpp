@@ -9,7 +9,7 @@
 #include "MPC.h"
 #include "json.hpp"
 
-#include "matplotlibcpp.h"
+//#include "matplotlibcpp.h"
 
 
 
@@ -21,7 +21,7 @@ using json = nlohmann::json;
 
 const bool show_graph = false;
 
-namespace plt = matplotlibcpp;
+//namespace plt = matplotlibcpp;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -242,7 +242,7 @@ int main() {
 
             Eigen::VectorXd state(6);
           
-            double dt = 0.0725;
+            double dt = 0.075;
             
             //predicted values
             double x_val=0.0 , y_val=0.0, psi_val=0.0, v_val = v, cte_val = cte, epsi_val = epsi;
@@ -296,6 +296,7 @@ int main() {
           {
             mpc_x.push_back(vars[i]);
             mpc_y.push_back(polyeval(coeffs , vars[i]) - vars[2]);
+            //mpc_y.push_back(vars[i+1]) ;
             
             
           }
@@ -356,7 +357,7 @@ int main() {
           if (iters == 100)
             {
 
-
+/*
                     
             // Plot values
             // NOTE: feel free to play around with this.
@@ -392,7 +393,7 @@ int main() {
             //plt::save("./graph.png");
             //exit(1);
 
-            
+            */
 
 
             }   

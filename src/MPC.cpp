@@ -7,7 +7,7 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 8;
-double dt = 0.0725;
+double dt = 0.075;
 
 
 // This value assumes the model presented in the classroom is used.
@@ -178,10 +178,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
 
 
           if (fangio)
-            { ref_v =  100;
-              double psi_cutoff = 0.03;
+            { 
+              
+              ref_v =  100;
+              double psi_cutoff = 0.0250;
               if ( (psi > psi_cutoff || psi < -psi_cutoff )  )
-              { ref_v = 20; cout << "\tCorner\t" ;}
+              { ref_v = 40; cout << "\tCorner\t\t" ;}
               else if ( psi <= psi_cutoff || psi >= -psi_cutoff)
               { ref_v = 100; cout << "\tStraight\t" ;}
             /**/
@@ -191,12 +193,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
               double epsi_cutoff = 0.2;
 
               if ( (epsi > epsi_cutoff || epsi < -epsi_cutoff ) )
-              {ref_v -= 20; cout << "\tEPSI --\t" ;} //
+              {ref_v -= 10; cout << "\tEPSI --\t" ;} //
               else if ( epsi <= epsi_cutoff || epsi >= -epsi_cutoff)
-              { ref_v += 20; } //cout << "\tEPSI ++\t";
+              { ref_v += 10; } //cout << "\tEPSI ++\t";
 
               if (ref_v <= 0)
-              {ref_v = 20;}
+              {ref_v = 40;}
 
               if (v > top_speed)
               {top_speed = v;}
@@ -209,7 +211,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs)
 
 
 
-  cout << top_speed << "\t" << ref_v  << endl;
+  cout << (int)top_speed << "\t\t" << ref_v  << endl;
 
   // TODO: Set the number of model variables (includes both states and inputs).
   // For example: If the state is a 4 element vector, the actuators is a 2
